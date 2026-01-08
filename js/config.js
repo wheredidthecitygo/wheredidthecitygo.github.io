@@ -5,13 +5,18 @@ export const CONFIG = {
     MARGIN: 0,
     CELL_BORDER_COLOR: '#000000',
     BACKGROUND_COLOR: '#ffffff',
-    MIN_CELL_SIZE_RATIO: 0.1, // Tamaño mínimo de celda (10% del tamaño normal)
+    MIN_CELL_SIZE_RATIO: 0.1, 
     DATA_FILE: 'grid_data.json',
-    USE_FAKE_DATA: false, // Cambiar a false cuando tengamos datos reales
+    USE_FAKE_DATA: false, 
+    
+    // Comportamiento de la imagen
+    // 'cover': La imagen llena la celda (recortando sobrantes)
+    // 'contain': La imagen se ve entera (con espacios blancos si no encaja)
+    IMAGE_FIT: 'cover', 
     
     // Renderizado
-    MIN_RENDER_SIZE: 10, // No renderizar imágenes/texto en celdas más pequeñas de 20px
-    LEVEL_TRANSITION_SIZE: 300, // Cambiar de nivel cuando las celdas superan 300px
+    MIN_RENDER_SIZE: 10, 
+    LEVEL_TRANSITION_SIZE: 300, 
     
     // Texto
     FONT_FAMILY: 'monospace',
@@ -23,13 +28,13 @@ export const CONFIG = {
     // Niveles de grid
     GRID_LEVELS: [64, 128, 256],
     
-    // Umbrales de tamaño por nivel (qué % del máximo count = tamaño completo)
+    // Umbrales
     LEVEL_THRESHOLDS: {
-        64: 0.05,   // 5% del máximo = tamaño completo
-        128: 0.05,  // 5% del máximo = tamaño completo
-        256: 0.025  // 2.5% del máximo = tamaño completo
+        64: 0.05,
+        128: 0.05,
+        256: 0.025
     },
     
     // Debug
-    DEBUG: false // Activa logs de rendimiento
+    DEBUG: false 
 };

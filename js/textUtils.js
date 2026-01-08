@@ -1,82 +1,94 @@
-// textUtils.js - Utilidades para texto
-
-import { CONFIG } from './config.js';
+// js/textUtils.js
 
 /**
- * Trunca texto para que quepa en el ancho dado, max 2 líneas
+ * Divide el texto en líneas.
+ * - Respeta palabras completas si caben.
+ * - Si una palabra es GIGANTE (más que el ancho), la parte a la fuerza.
+ * - Añade "..." si se pasa de maxLines.
  */
-export function truncateText(ctx, text, maxWidth) {
+export function truncateText(ctx, text, maxWidth, maxLines = 2) {
+    if (!text) return [];
+
     const words = text.split(' ');
     const lines = [];
-    let currentLine = '';
-    
-    for (const word of words) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word;
-        const metrics = ctx.measureText(testLine);
+    let currentLine = "";
+
+    for (let i = 0; i < words.length; i++) {
+        let word = words[i];
         
-        if (metrics.width > maxWidth) {
-            if (currentLine) {
+        // 1. ¿La palabra sola ya es más ancha que el máximo permitido?
+        // Si es así, hay que partirla a la fuerza.
+        if (ctx.measureText(word).width > maxWidth) {
+            // Si teníamos algo en el buffer, lo guardamos antes de procesar la palabra gigante
+            if (currentLine.length > 0) {
                 lines.push(currentLine);
-                currentLine = word;
-            } else {
-                // Palabra muy larga, truncarla
-                lines.push(truncateWord(ctx, word, maxWidth));
-                currentLine = '';
+                currentLine = "";
+                if (lines.length >= maxLines) break; // Ya no cabe más
             }
-            
-            if (lines.length >= CONFIG.MAX_TEXT_LINES) {
-                break;
+
+            // Procesamos la palabra gigante letra por letra
+            let subWord = "";
+            for (let char of word) {
+                if (ctx.measureText(subWord + char).width <= maxWidth) {
+                    subWord += char;
+                } else {
+                    // La sub-palabra llenó la línea
+                    lines.push(subWord);
+                    subWord = char; // Empezamos nueva línea con la letra actual
+                    if (lines.length >= maxLines) break;
+                }
             }
-        } else {
-            currentLine = testLine;
+            // Lo que sobre de la palabra gigante pasa a ser la línea actual
+            if (lines.length < maxLines) {
+                currentLine = subWord; // Nota: Aquí no añadimos espacio automáticamente
+            }
+            continue; // Pasamos a la siguiente palabra del array original
         }
+
+        // 2. Comportamiento normal (palabra cabe entera)
+        const testLine = currentLine.length > 0 ? currentLine + " " + word : word;
+        const width = ctx.measureText(testLine).width;
+
+        if (width < maxWidth) {
+            currentLine = testLine;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+
+        if (lines.length >= maxLines) break;
     }
-    
-    if (currentLine && lines.length < CONFIG.MAX_TEXT_LINES) {
+
+    // Añadir la última línea pendiente si hay hueco
+    if (currentLine.length > 0 && lines.length < maxLines) {
         lines.push(currentLine);
     }
-    
-    // Si hay más texto, añadir ... a la última línea
-    if (lines.length === CONFIG.MAX_TEXT_LINES && words.length > lines.join(' ').split(' ').length) {
-        const lastLine = lines[lines.length - 1];
-        lines[lines.length - 1] = truncateWord(ctx, lastLine, maxWidth, '...');
+
+    // Lógica de "..." para la última línea si nos hemos pasado
+    // (Simplificación: si el texto original sigue teniendo palabras que no hemos procesado
+    // o si cortamos forzosamente, deberíamos indicarlo).
+    // Para simplificar y asegurar rendimiento, aplicamos el "..." a la última línea válida
+    // si vemos que se llenó el array de líneas.
+    if (lines.length === maxLines) {
+        const lastIndex = maxLines - 1;
+        let lastLine = lines[lastIndex];
+        
+        // Verificamos si realmente cortamos texto (esto es una aproximación visual)
+        // Simplemente nos aseguramos que la última línea no se salga con los puntos
+        while (ctx.measureText(lastLine + "...").width > maxWidth && lastLine.length > 0) {
+            lastLine = lastLine.slice(0, -1);
+        }
+        lines[lastIndex] = lastLine + (lastLine.length < lines[lastIndex].length ? "..." : "...");
     }
-    
+
     return lines;
 }
 
-/**
- * Trunca una palabra añadiendo ... si es necesario
- */
-function truncateWord(ctx, word, maxWidth, suffix = '...') {
-    const suffixWidth = ctx.measureText(suffix).width;
-    
-    for (let i = word.length; i > 0; i--) {
-        const truncated = word.substring(0, i) + suffix;
-        const metrics = ctx.measureText(truncated);
-        
-        if (metrics.width <= maxWidth) {
-            return truncated;
-        }
-    }
-    
-    return suffix;
-}
-
-/**
- * Dibuja texto centrado en múltiples líneas
- */
-export function drawCenteredText(ctx, lines, x, y, width) {
-    const lineHeight = CONFIG.FONT_SIZE + 2;
-    const totalHeight = lines.length * lineHeight;
-    let currentY = y - totalHeight / 2;
-    
-    ctx.fillStyle = CONFIG.TEXT_COLOR;
+export function drawCenteredText(ctx, lines, x, startY, lineHeight) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    
-    for (const line of lines) {
-        ctx.fillText(line, x, currentY);
-        currentY += lineHeight;
-    }
+
+    lines.forEach((line, index) => {
+        ctx.fillText(line, x, startY + (index * lineHeight));
+    });
 }

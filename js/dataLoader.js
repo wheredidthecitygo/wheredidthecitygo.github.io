@@ -33,7 +33,6 @@ export function generateFakeData(gridSize) {
  */
 export async function loadData(gridSize) {
     if (CONFIG.USE_FAKE_DATA) {
-        console.log('Usando datos falsos para pruebas');
         return generateFakeData(gridSize);
     }
     
@@ -44,16 +43,12 @@ export async function loadData(gridSize) {
         }
         
         const json = await response.json();
-        console.log(`JSON cargado, estructura:`, Object.keys(json));
-        console.log(`Niveles disponibles:`, Object.keys(json.levels || {}));
-        
+  
         const levelData = json.levels[gridSize.toString()] || {};
-        console.log(`Datos para nivel ${gridSize}:`, Object.keys(levelData).length, 'celdas');
-        
+       
         return levelData;
     } catch (error) {
         console.error('Error al cargar datos:', error);
-        console.log('Usando datos falsos como fallback');
         return generateFakeData(gridSize);
     }
 }

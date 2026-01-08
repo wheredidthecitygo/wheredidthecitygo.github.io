@@ -1,19 +1,11 @@
-// gridRenderer.js - Renderizado del grid
+// js/gridRenderer.js
 
 import { CONFIG } from './config.js';
 import { getCountRange } from './dataLoader.js';
 import { truncateText, drawCenteredText } from './textUtils.js';
 
-/**
- * Calcula las dimensiones del grid en el mundo
- * El grid tiene un tamaño FIJO en el mundo (1000 unidades)
- * y está centrado en (0,0)
- */
 export function calculateGridDimensions(canvasWidth, canvasHeight) {
-    // El grid tiene un tamaño fijo en unidades del mundo
-    // Este tamaño determina el "zoom inicial" del grid
     const GRID_WORLD_SIZE = 1000;
-    
     return {
         size: GRID_WORLD_SIZE,
         offsetX: -GRID_WORLD_SIZE / 2,
@@ -21,190 +13,146 @@ export function calculateGridDimensions(canvasWidth, canvasHeight) {
     };
 }
 
-/**
- * Calcula el tamaño de una celda basado en su count con ease-in-out
- */
 export function calculateCellSize(count, minCount, maxCount, baseCellSize, gridSize) {
     const { MIN_CELL_SIZE_RATIO, LEVEL_THRESHOLDS } = CONFIG;
-    
-    if (maxCount === minCount) {
-        return baseCellSize;
-    }
-    
+    if (maxCount === minCount) return baseCellSize;
     const thresholdPercent = LEVEL_THRESHOLDS[gridSize] || 0.05;
     const threshold = minCount + (maxCount - minCount) * thresholdPercent;
-    
-    if (count >= threshold) {
-        return baseCellSize;
-    }
-    
+    if (count >= threshold) return baseCellSize;
     const normalized = (count - minCount) / (threshold - minCount);
-    
     let eased;
-    if (normalized < 0.5) {
-        eased = 2 * normalized * normalized;
-    } else {
-        eased = 1 - 2 * Math.pow(1 - normalized, 2);
-    }
-    
+    if (normalized < 0.5) eased = 2 * normalized * normalized;
+    else eased = 1 - 2 * Math.pow(1 - normalized, 2);
     const sizeRatio = MIN_CELL_SIZE_RATIO + eased * (1 - MIN_CELL_SIZE_RATIO);
-    
     return baseCellSize * sizeRatio;
 }
 
-/**
- * Calcula qué celdas son visibles en la pantalla actual
- * Buffer dinámico: aumenta con zoom alto para evitar que imágenes desaparezcan
- */
 function getVisibleCells(camera, canvasWidth, canvasHeight, gridDims, baseCellSize, gridSize) {
     const topLeft = camera.screenToWorld(0, 0);
     const bottomRight = camera.screenToWorld(canvasWidth, canvasHeight);
-    
     const scale = camera.getScale();
-    
-    // Buffer dinámico según zoom
     let bufferMultiplier = 3;
     if (scale > 10) bufferMultiplier = 5;
     if (scale > 20) bufferMultiplier = 8;
-    
     const bufferInWorldUnits = (baseCellSize * bufferMultiplier) / scale;
-    
     const startX = Math.max(0, Math.floor((topLeft.x - gridDims.offsetX - bufferInWorldUnits) / baseCellSize));
     const endX = Math.min(gridSize - 1, Math.ceil((bottomRight.x - gridDims.offsetX + bufferInWorldUnits) / baseCellSize));
     const startY = Math.max(0, Math.floor((topLeft.y - gridDims.offsetY - bufferInWorldUnits) / baseCellSize));
     const endY = Math.min(gridSize - 1, Math.ceil((bottomRight.y - gridDims.offsetY + bufferInWorldUnits) / baseCellSize));
-    
     return { startX, endX, startY, endY };
 }
 
-/**
- * Renderiza el grid completo
- */
 export function renderGrid(ctx, canvas, data, gridSize, camera, imageManager) {
-    // Limpiar canvas
+    // Limpieza inicial
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = CONFIG.BACKGROUND_COLOR;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Aplicar transformaciones de cámara
-    camera.applyTransform(ctx);
-    
-    // Calcular dimensiones del grid
+    // Guardamos datos de cámara
+    const currentScale = camera.getScale();
+    const camX = camera.x;
+    const camY = camera.y;
+
     const gridDims = calculateGridDimensions(canvas.width, canvas.height);
     const baseCellSize = gridDims.size / gridSize;
-    
-    // Obtener rango de counts para este nivel
     const { min: minCount, max: maxCount } = getCountRange(data);
     
-    // Grosor de línea constante
-    const lineWidth = 1 / camera.getScale();
-    
-    // Calcular celdas visibles
+    // Grosor de línea en Unidades de Mundo
+    const lineWidth = 1 / currentScale;
+
     const visibleCells = getVisibleCells(camera, canvas.width, canvas.height, gridDims, baseCellSize, gridSize);
     
-    // Configurar fuente
-    ctx.font = `${CONFIG.FONT_SIZE}px ${CONFIG.FONT_FAMILY}`;
-    
-    // Renderizar celdas visibles
     for (let cellX = visibleCells.startX; cellX <= visibleCells.endX; cellX++) {
         for (let cellY = visibleCells.startY; cellY <= visibleCells.endY; cellY++) {
             const key = `${cellX},${cellY}`;
             const cellData = data[key];
-            
             if (!cellData) continue;
             
-            // Calcular posición de la celda
-            const x = gridDims.offsetX + cellX * baseCellSize;
-            const y = gridDims.offsetY + cellY * baseCellSize;
+            // Cálculos de coordenadas MUNDIALES
+            const worldX = gridDims.offsetX + cellX * baseCellSize;
+            const worldY = gridDims.offsetY + cellY * baseCellSize;
+            const cellSizeWorld = calculateCellSize(cellData.count, minCount, maxCount, baseCellSize, gridSize);
+            const centerOffset = (baseCellSize - cellSizeWorld) / 2;
+            const finalX_World = worldX + centerOffset;
+            const finalY_World = worldY + centerOffset;
+
+            // Tamaño en PANTALLA para decisiones lógicas
+            const screenCellSize = cellSizeWorld * currentScale;
+
+            // --- FASE 1: DIBUJO EN ESPACIO MUNDIAL (Background, Imagen, Borde) ---
+            ctx.setTransform(currentScale, 0, 0, currentScale, camX, camY);
             
-            // Calcular tamaño proporcional
-            const cellSize = calculateCellSize(
-                cellData.count,
-                minCount,
-                maxCount,
-                baseCellSize,
-                gridSize
-            );
+            // 1. Fondo Blanco (Siempre)
+            ctx.fillStyle = CONFIG.BACKGROUND_COLOR;
+            ctx.fillRect(finalX_World, finalY_World, cellSizeWorld, cellSizeWorld);
             
-            // Calcular tamaño en píxeles de pantalla
-            const screenCellSize = cellSize * camera.getScale();
-            
-            // Centrar la celda en su espacio
-            const centerOffset = (baseCellSize - cellSize) / 2;
-            const finalX = x + centerOffset;
-            const finalY = y + centerOffset;
-            
-            // Dibujar borde
+            // 2. Imagen (Solo si es suficientemente grande)
+            if (screenCellSize >= CONFIG.MIN_RENDER_SIZE) {
+                const img = imageManager.getImage(cellData.img);
+                if (img) {
+                    ctx.save();
+                    // Clip para que la imagen no se salga
+                    ctx.beginPath();
+                    ctx.rect(finalX_World, finalY_World, cellSizeWorld, cellSizeWorld);
+                    ctx.clip(); 
+
+                    const scaleX = cellSizeWorld / img.width;
+                    const scaleY = cellSizeWorld / img.height;
+                    const scale = (CONFIG.IMAGE_FIT === 'contain') 
+                        ? Math.min(scaleX, scaleY) 
+                        : Math.max(scaleX, scaleY);
+
+                    const imgWidth = img.width * scale;
+                    const imgHeight = img.height * scale;
+                    const centerX = finalX_World + (cellSizeWorld - imgWidth) / 2;
+                    const centerY = finalY_World + (cellSizeWorld - imgHeight) / 2;
+
+                    ctx.drawImage(img, centerX, centerY, imgWidth, imgHeight);
+                    ctx.restore();
+                }
+            }
+
+            // 3. Borde (Siempre, y ENCIMA de la imagen para que quede limpio)
             ctx.strokeStyle = CONFIG.CELL_BORDER_COLOR;
             ctx.lineWidth = lineWidth;
-            ctx.strokeRect(finalX, finalY, cellSize, cellSize);
-            
-            // Solo renderizar contenido si es suficientemente grande
-            if (screenCellSize < CONFIG.MIN_RENDER_SIZE) {
-                continue;
-            }
-            
-            // Obtener imagen
-            const img = imageManager.getImage(cellData.img);
-            
-            if (!img) continue;
-            
-            // Decidir si mostrar texto
-            const showText = screenCellSize >= 200;
-            
-            let availableWidth, availableHeight, imgX, imgY;
-            
-            if (showText) {
-                // Celda grande: imagen arriba, texto abajo
-                const lineHeight = CONFIG.FONT_SIZE + 2;
-                const textHeight = lineHeight * CONFIG.MAX_TEXT_LINES + 4;
+            ctx.strokeRect(finalX_World, finalY_World, cellSizeWorld, cellSizeWorld);
+
+            // --- FASE 2: DIBUJO EN ESPACIO PANTALLA (Texto) ---
+            if (screenCellSize >= 200 && cellData.caption) {
+                // Reseteamos transformación a Píxeles de Pantalla
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+                // Calculamos coordenadas de pantalla manualmente
+                const screenX = (finalX_World * currentScale) + camX;
+                const screenY = (finalY_World * currentScale) + camY;
+
+                const fontSize = CONFIG.FONT_SIZE;
+                const padding = CONFIG.TEXT_PADDING;
                 
-                availableWidth = cellSize;
-                availableHeight = cellSize - textHeight;
+                ctx.font = `${fontSize}px ${CONFIG.FONT_FAMILY}`;
                 
-                imgX = finalX;
-                imgY = finalY;
-            } else {
-                // Celda pequeña: solo imagen
-                availableWidth = cellSize;
-                availableHeight = cellSize;
+                const maxTextWidth = screenCellSize - (padding * 2);
                 
-                imgX = finalX;
-                imgY = finalY;
-            }
-            
-            if (availableHeight > 0 && availableWidth > 0) {
-                // Calcular escala para la imagen
-                const scaleX = availableWidth / img.width;
-                const scaleY = availableHeight / img.height;
-                const scale = Math.min(scaleX, scaleY);
+                const lines = truncateText(ctx, cellData.caption, maxTextWidth, CONFIG.MAX_TEXT_LINES || 2);
                 
-                const imgWidth = img.width * scale;
-                const imgHeight = img.height * scale;
-                
-                // Centrar imagen
-                const centerX = imgX + (availableWidth - imgWidth) / 2;
-                const centerY = imgY + (availableHeight - imgHeight) / 2;
-                
-                ctx.drawImage(img, centerX, centerY, imgWidth, imgHeight);
-                
-                // Dibujar texto si corresponde
-                if (showText) {
-                    const textY = finalY + availableHeight + 2;
-                    const textX = finalX + cellSize / 2;
-                    const textWidth = cellSize - 4;
+                if (lines.length > 0) {
+                    const lineHeight = fontSize * 1.3;
+                    const blockHeight = (lines.length * lineHeight) + (padding * 2);
+                    const blockY = screenY + screenCellSize - blockHeight;
                     
-                    const lines = truncateText(ctx, cellData.caption, textWidth);
-                    drawCenteredText(ctx, lines, textX, textY, textWidth);
+                    // Fondo etiqueta blanca
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(screenX, blockY, screenCellSize, blockHeight);
+                    
+                    // Texto
+                    ctx.fillStyle = CONFIG.TEXT_COLOR;
+                    drawCenteredText(ctx, lines, screenX + screenCellSize / 2, blockY + padding, lineHeight);
                 }
             }
         }
     }
 }
 
-/**
- * Calcula el tamaño promedio de celda en píxeles de pantalla
- */
 export function calculateAverageCellSize(canvas, gridSize, camera) {
     const gridDims = calculateGridDimensions(canvas.width, canvas.height);
     const baseCellSize = gridDims.size / gridSize;
