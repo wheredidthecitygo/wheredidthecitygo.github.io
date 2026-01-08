@@ -183,6 +183,9 @@
         .caption-ejemplo {
             margin-bottom: 2px;
         }
+        .meta-label {
+            font-family: 'PPSupplyMono-Regular', monospace;
+        }
     </style>
 </head>
 <body>
@@ -203,10 +206,21 @@
             </div>
 
             <!-- Zona de Datos -->
-            <div class="metadata">
-                <div class="metadata-row">url: <a class="meta-url" target="_blank"></a></div>
-                <div class="metadata-row">caption: <span class="meta-caption"></span></div>
-                <div class="metadata-row">count: <span class="meta-count"></span></div>
+             <div class="metadata">
+                <div class="metadata-row">
+                    <span class="meta-label">url:</span> 
+                    <a class="meta-url" target="_blank"></a>
+                </div>
+                
+                <div class="metadata-row">
+                    <span class="meta-label">caption:</span> 
+                    <span class="meta-caption"></span>
+                </div>
+                
+                <div class="metadata-row">
+                    <span class="meta-label">count:</span> 
+                    <span class="meta-count"></span>
+                </div>
                 
                 <p class="examples-title">Others examples</p>
                 <div class="ejemplos">
