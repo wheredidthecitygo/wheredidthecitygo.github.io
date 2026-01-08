@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Where did the city go?</title>
     <style>
+        /* FUENTES */
+        @font-face {
+            font-family: 'PPSupplyMono-Regular';
+            src: url('fonts/supply/PPSupplyMono-Regular.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'PPSupplyMono-Ultralight';
+            src: url('fonts/supply/PPSupplyMono-Ultralight.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,9 +29,13 @@
         body {
             overflow: hidden;
             background: white;
-            font-family: monospace;
+            font-family: 'PPSupplyMono-Ultralight', monospace; 
         }
+
+        /* Estilos generales de texto y enlaces */
+        a { color: black; text-decoration: underline; cursor: pointer; }
         
+        /* CANVAS */
         #canvas {
             display: block;
             width: 100vw;
@@ -24,57 +43,177 @@
             opacity: 0;
             transition: opacity 0.5s ease;
         }
+        #canvas.visible { opacity: 1; }
 
-        #canvas.visible {
-            opacity: 1;
-        }
-
-        /* Loading Screen */
+        /* LOADER */
         #loader {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0; width: 100vw; height: 100vh;
             background: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             z-index: 1000;
             transition: opacity 0.5s ease;
         }
-
-        #loader.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
+        #loader.hidden { opacity: 0; pointer-events: none; }
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #000;
+            width: 40px; height: 40px;
+            border: 4px solid #f3f3f3; border-top: 4px solid #000;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        .loading-text { font-size: 14px; color: #333; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* SIDEBAR / INFO */
+        .info {
+            position: fixed;
+            top: 30px;    
+            left: 30px;
+            width: 280px; /* Ancho fijo para consistencia */
+            max-height: calc(100vh - 60px); /* Evitar que se salga de pantalla */
+            display: flex;
+            flex-direction: column;
+            pointer-events: none; /* Dejamos pasar clicks fuera de los hijos */
+            z-index: 10;
+        }
+        
+        /* Hacemos que los hijos sí capturen el ratón */
+        .info > * { pointer-events: auto; }
+
+        .title {
+            padding: 5px;
             margin-bottom: 20px;
+            background: #c4c4c4;
+            font-family: 'PPSupplyMono-Regular', monospace; 
+            font-size: 20px;
+            color: #000;
         }
 
-        .loading-text {
+        .city {
+            padding: 5px;
+            background-color: #c4c4c4;
+            margin-bottom: 20px;
             font-size: 14px;
-            color: #333;
+            cursor: pointer;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .menu {
+            background-color: #c4c4c4;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden; /* Para contener floats si los hubiera */
+            max-height: 100%; /* Permitir scroll interno si es necesario */
+        }
+
+        /* Contenedor de la imagen principal / Placeholder */
+        .image-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border: 1px solid #000;
+        }
+
+        .image-placeholder-text {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .main-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none; /* Oculta por defecto */
+        }
+
+        /* Metadatos */
+        .metadata {
+            display: none; /* Oculto hasta que se seleccione algo */
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12px;
+            overflow: hidden;
+        }
+        
+        .metadata.active { display: flex; }
+
+        .metadata-row {
+            word-break: break-all; /* Para URLs largas */
+        }
+
+        /* Sección Ejemplos */
+        .examples-title {
+            margin-top: 10px;
+            font-weight: bold;
+            font-family: 'PPSupplyMono-Regular', monospace; 
+        }
+
+        .ejemplos {
+            margin-top: 5px;
+            max-height: 300px; /* Límite de altura */
+            overflow-y: auto;  /* Scroll vertical */
+            border-top: 1px solid #000;
+            padding-top: 5px;
+        }
+
+        /* Scrollbar personalizada minimalista */
+        .ejemplos::-webkit-scrollbar { width: 4px; }
+        .ejemplos::-webkit-scrollbar-track { background: #f1f1f1; }
+        .ejemplos::-webkit-scrollbar-thumb { background: #888; }
+
+        .ejemplo {
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+
+        .img-ejemplo {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-bottom: 4px;
+            border: 1px solid #000;
+        }
+
+        .caption-ejemplo {
+            margin-bottom: 2px;
         }
     </style>
 </head>
 <body>
     <div id="loader">
         <div class="spinner"></div>
-        <div class="loading-text">CARGANDO CIUDAD...</div>
+        <div class="loading-text">LOADING TECHNOCITY...</div>
+    </div>
+    
+    <div class="info">
+        <h1 class="title">Where did the city go?</h1>
+        <div class="city">Select Madrid / Arequipa</div>
+        
+        <div class="menu">
+            <!-- Zona de Imagen Principal (o Placeholder) -->
+            <div class="image-container">
+                <div class="image-placeholder-text">Select an image</div>
+                <img class="main-image" src="" alt="Selected">
+            </div>
+
+            <!-- Zona de Datos -->
+            <div class="metadata">
+                <div class="metadata-row">url: <a class="meta-url" target="_blank"></a></div>
+                <div class="metadata-row">caption: <span class="meta-caption"></span></div>
+                <div class="metadata-row">count: <span class="meta-count"></span></div>
+                
+                <p class="examples-title">Others examples</p>
+                <div class="ejemplos">
+                    <!-- Los ejemplos se inyectarán aquí con JS -->
+                </div>
+            </div>
+        </div>
     </div>
 
     <canvas id="canvas"></canvas>

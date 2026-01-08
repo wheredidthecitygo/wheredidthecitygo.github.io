@@ -1,4 +1,4 @@
-// config.js - Configuración general
+// js/config.js
 
 export const CONFIG = {
     GRID_SIZE: 64,
@@ -6,12 +6,16 @@ export const CONFIG = {
     CELL_BORDER_COLOR: '#000000',
     BACKGROUND_COLOR: '#ffffff',
     MIN_CELL_SIZE_RATIO: 0.1, 
-    DATA_FILE: 'grid_data.json',
-    USE_FAKE_DATA: false, 
     
-    // Comportamiento de la imagen
-    // 'cover': La imagen llena la celda (recortando sobrantes)
-    // 'contain': La imagen se ve entera (con espacios blancos si no encaja)
+    // YA NO USAMOS DATA_FILE ÚNICO
+    // Definimos la estructura de archivos por nivel
+    DATA_SOURCES: {
+        64: ['data/grid_64.json'],
+        128: ['data/grid_128_part1.json', 'data/grid_128_part2.json'],
+        256: ['data/grid_256_part1.json', 'data/grid_256_part2.json', 'data/grid_256_part3.json']
+    },
+    
+    USE_FAKE_DATA: false, 
     IMAGE_FIT: 'cover', 
     
     // Renderizado
@@ -35,6 +39,5 @@ export const CONFIG = {
         256: 0.025
     },
     
-    // Debug
     DEBUG: false 
 };

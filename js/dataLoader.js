@@ -1,70 +1,86 @@
-// dataLoader.js - Carga de datos
+// js/dataLoader.js
 
 import { CONFIG } from './config.js';
 
 /**
- * Genera datos falsos para pruebas
- */
-export function generateFakeData(gridSize) {
-    const data = {};
-    
-    // Generar datos aleatorios para algunas celdas
-    const numCells = Math.floor(gridSize * gridSize * 0.6); // ~60% de celdas con datos
-    
-    for (let i = 0; i < numCells; i++) {
-        const x = Math.floor(Math.random() * gridSize);
-        const y = Math.floor(Math.random() * gridSize);
-        const key = `${x},${y}`;
-        
-        if (!data[key]) {
-            data[key] = {
-                count: Math.floor(Math.random() * 10000) + 100,
-                img: `images/${gridSize}/${x}_${y}.webp`,
-                caption: `Imagen de prueba en celda ${x},${y} con datos aleatorios`
-            };
-        }
-    }
-    
-    return data;
-}
-
-/**
- * Carga datos del archivo JSON
+ * Carga los datos combinados para un nivel de grid específico
  */
 export async function loadData(gridSize) {
+    // Si estamos en modo fake data (para pruebas sin servidor)
     if (CONFIG.USE_FAKE_DATA) {
         return generateFakeData(gridSize);
     }
-    
+
+    const files = CONFIG.DATA_SOURCES[gridSize];
+
+    if (!files || files.length === 0) {
+        console.error(`No hay archivos configurados para el nivel ${gridSize}`);
+        return {};
+    }
+
     try {
-        const response = await fetch(CONFIG.DATA_FILE);
-        if (!response.ok) {
-            throw new Error(`Error cargando datos: ${response.status}`);
-        }
+        console.time(`Carga Nivel ${gridSize}`);
         
-        const json = await response.json();
-  
-        const levelData = json.levels[gridSize.toString()] || {};
-       
-        return levelData;
+        // 1. Lanzar todas las peticiones en PARALELO
+        const promises = files.map(file => fetch(file).then(response => {
+            if (!response.ok) {
+                throw new Error(`Error cargando ${file}: ${response.statusText}`);
+            }
+            return response.json();
+        }));
+
+        // 2. Esperar a que lleguen todas
+        const parts = await Promise.all(promises);
+
+        // 3. Fusionar las partes en un único objeto
+        // Usamos Object.assign en un objeto vacío para fusionar
+        // (Es más eficiente que ...spread para objetos muy grandes)
+        const combinedData = Object.assign({}, ...parts);
+
+        console.timeEnd(`Carga Nivel ${gridSize}`);
+        console.log(`Nivel ${gridSize} cargado. Celdas totales: ${Object.keys(combinedData).length}`);
+
+        return combinedData;
+
     } catch (error) {
-        console.error('Error al cargar datos:', error);
-        return generateFakeData(gridSize);
+        console.error(`Error crítico cargando datos del nivel ${gridSize}:`, error);
+        return {};
     }
 }
 
 /**
- * Encuentra el valor máximo y mínimo de count en los datos
+ * Calcula el rango min/max de los counts para normalizar tamaños
  */
 export function getCountRange(data) {
-    const counts = Object.values(data).map(cell => cell.count);
+    let min = Infinity;
+    let max = -Infinity;
     
-    if (counts.length === 0) {
-        return { min: 0, max: 1 };
+    // Iteramos solo los valores para ser más rápidos
+    const values = Object.values(data);
+    
+    if (values.length === 0) return { min: 1, max: 1 };
+
+    for (const item of values) {
+        if (item.count < min) min = item.count;
+        if (item.count > max) max = item.count;
     }
     
-    return {
-        min: Math.min(...counts),
-        max: Math.max(...counts)
-    };
+    return { min, max };
+}
+
+// Generador de datos falsos (solo por si acaso necesitas testear sin JSONs)
+function generateFakeData(gridSize) {
+    const data = {};
+    for (let x = 0; x < gridSize; x++) {
+        for (let y = 0; y < gridSize; y++) {
+            if (Math.random() > 0.7) continue; 
+            const key = `${x},${y}`;
+            data[key] = {
+                count: Math.floor(Math.random() * 1000),
+                img: `https://picsum.photos/200?random=${x * gridSize + y}`,
+                caption: `Celda ${x},${y} con datos de prueba`
+            };
+        }
+    }
+    return Promise.resolve(data);
 }
