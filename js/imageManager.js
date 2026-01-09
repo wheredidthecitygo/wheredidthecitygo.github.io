@@ -1,4 +1,4 @@
-// imageManager.js - Gestión de carga y cache de imágenes
+// js/imageManager.js
 
 export class ImageManager {
     constructor() {
@@ -7,13 +7,20 @@ export class ImageManager {
     }
     
     /**
-     * Obtiene una imagen (del cache o la carga)
+     * Obtiene una imagen.
+     * @param {string} path - Ruta relativa del JSON (ej: "256/0_0.webp")
+     * @param {string} city - Ciudad actual (ej: "madrid")
      */
-    getImage(path) {
-        // Normalizar path: si no empieza con http ni images/, añadir images/
+    getImage(path, city) {
+        if (!path) return null;
+
+        // Normalizar path: Construimos la ruta absoluta basada en la ciudad
         let normalizedPath = path;
+        
+        // Si no es una URL absoluta y no empieza ya por images/
         if (!path.startsWith('http') && !path.startsWith('images/')) {
-            normalizedPath = 'images/' + path;
+            // AQUI ESTA EL CAMBIO: Inyectamos la ciudad
+            normalizedPath = `images/${city}/${path}`;
         }
         
         // Si ya está en cache, devolverla
@@ -31,9 +38,6 @@ export class ImageManager {
         return null;
     }
     
-    /**
-     * Carga una imagen de forma asíncrona
-     */
     async loadImage(path) {
         this.loading.add(path);
         
@@ -49,7 +53,6 @@ export class ImageManager {
             this.cache.set(path, img);
             this.loading.delete(path);
             
-            // Notificar que hay que re-renderizar
             window.dispatchEvent(new CustomEvent('imageLoaded'));
             
         } catch (error) {
@@ -58,10 +61,8 @@ export class ImageManager {
         }
     }
     
-    /**
-     * Limpia el cache
-     */
     clearCache() {
         this.cache.clear();
+        this.loading.clear();
     }
 }

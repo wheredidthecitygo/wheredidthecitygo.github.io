@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,16 +26,23 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
+        /* 1. ELIMINAR SCROLL GLOBAL */
+        html,
         body {
             overflow: hidden;
             background: white;
-            font-family: 'PPSupplyMono-Ultralight', monospace; 
+            font-family: 'PPSupplyMono-Ultralight', monospace;
+            height: 100%;
+            width: 100%;
         }
 
-        /* Estilos generales de texto y enlaces */
-        a { color: black; text-decoration: underline; cursor: pointer; }
-        
+        a {
+            color: black;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
         /* CANVAS */
         #canvas {
             display: block;
@@ -43,81 +51,182 @@
             opacity: 0;
             transition: opacity 0.5s ease;
         }
-        #canvas.visible { opacity: 1; }
+
+        #canvas.visible {
+            opacity: 1;
+        }
 
         /* LOADER */
         #loader {
             position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: white;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             z-index: 1000;
             transition: opacity 0.5s ease;
         }
-        #loader.hidden { opacity: 0; pointer-events: none; }
-        .spinner {
-            width: 40px; height: 40px;
-            border: 4px solid #f3f3f3; border-top: 4px solid #000;
-            border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
-        .loading-text { font-size: 14px; color: #333; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* SIDEBAR / INFO */
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loading-text {
+            font-size: 14px;
+            color: #333;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* --- SIDEBAR / INFO (LAYOUT MODIFICADO) --- */
         .info {
             position: fixed;
-            top: 30px;    
-            left: 30px;
-            width: 280px; /* Ancho fijo para consistencia */
-            max-height: calc(100vh - 60px); /* Evitar que se salga de pantalla */
+            top: 0;
+            left: 0;
+            height: 100vh;
+            /* Ocupa toda la altura */
+            padding: 30px;
+            /* Padding solicitado */
+            width: 340px;
+            /* 280px contenido + 60px padding total */
+
             display: flex;
             flex-direction: column;
-            pointer-events: none; /* Dejamos pasar clicks fuera de los hijos */
+            /* Organiza hijos en columna */
+
+            pointer-events: none;
             z-index: 10;
         }
-        
-        /* Hacemos que los hijos sí capturen el ratón */
-        .info > * { pointer-events: auto; }
+
+        .info>* {
+            pointer-events: auto;
+        }
 
         .title {
             padding: 5px;
             margin-bottom: 20px;
+            /* Margen existente */
             background: #c4c4c4;
-            font-family: 'PPSupplyMono-Regular', monospace; 
+            font-family: 'PPSupplyMono-Regular', monospace;
             font-size: 20px;
             color: #000;
+            flex-shrink: 0;
+            /* No encoger */
         }
 
+        /* ESTILOS DE LA CIUDAD ACTUALIZADOS */
         .city {
             padding: 5px;
             background-color: #c4c4c4;
             margin-bottom: 20px;
             font-size: 14px;
-            cursor: pointer;
+            cursor: default;
+            flex-shrink: 0;
+
+            /* Para que los pipes | se vean bien */
+            display: flex;
+            gap: 5px;
         }
 
+        .city-option {
+            cursor: pointer;
+            transition: font-weight 0.2s;
+            /* Por defecto usa la fuente del body (Ultralight) */
+        }
+
+        /* Estado Activo (Seleccionado) */
+        .city-option.active {
+            font-family: 'PPSupplyMono-Regular', monospace;
+            cursor: default;
+            /* No clicar si ya está activo */
+        }
+
+        /* Estado Hover (Solo si no está desactivado) */
+        .city-option:not(.disabled):hover {
+            font-family: 'PPSupplyMono-Regular', monospace;
+        }
+
+        /* "More soon..." deshabilitado */
+        .city-option.disabled {
+            cursor: default;
+            opacity: 0.5;
+        }
+
+        /* DIV MENU: Contenedor gris flexible */
         .menu {
             background-color: #c4c4c4;
             padding: 5px;
+
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            overflow: hidden; /* Para contener floats si los hubiera */
-            max-height: 100%; /* Permitir scroll interno si es necesario */
+
+            /* POR DEFECTO: No crece, solo ocupa lo que mide la imagen */
+            flex: 0;
         }
 
-        /* Contenedor de la imagen principal / Placeholder */
+        /* ESTADO ACTIVO: Cuando hay selección, crece hasta abajo */
+        .menu.active {
+            flex: 1;
+            min-height: 0;
+            /* Permite el scroll */
+        }
+
         .image-container {
             width: 100%;
+            /* ESTADO POR DEFECTO (VACÍO): Cuadrado */
             aspect-ratio: 1 / 1;
             background-color: #e0e0e0;
+
+            /* Centrado del texto placeholder */
             display: flex;
             justify-content: center;
             align-items: center;
+
             overflow: hidden;
             border: 1px solid #000;
+            flex-shrink: 0;
+        }
+
+        /* ESTADO LLENO: Se adapta a la imagen */
+        .image-container.filled {
+            aspect-ratio: auto;
+            /* Deja de ser cuadrado forzoso */
+            height: auto;
+            /* La altura la dicta la imagen */
+            display: block;
+            /* Quitamos flex para que la img fluya normal */
+        }
+
+        .main-image {
+            width: 100%;
+            height: auto;
+            /* IMPORTANTE: Altura automática para mantener proporción */
+            display: none;
+            vertical-align: bottom;
+            /* Elimina un pequeño espacio blanco extra abajo */
         }
 
         .image-placeholder-text {
@@ -125,47 +234,61 @@
             padding: 10px;
         }
 
-        .main-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none; /* Oculta por defecto */
-        }
-
-        /* Metadatos */
+        /* PARTE 2: DATOS (Flexible y Scrollable) */
         .metadata {
-            display: none; /* Oculto hasta que se seleccione algo */
+            display: none;
             flex-direction: column;
             gap: 8px;
             font-size: 12px;
-            overflow: hidden;
+
+            /* Aquí es donde ocurre la magia del scroll */
+            flex: 1;
+            overflow-y: auto;
+
+            /* Padding derecho para evitar que el scroll tape contenido */
+            padding-right: 5px;
+            margin-top: 10px;
         }
-        
-        .metadata.active { display: flex; }
+
+        .metadata.active {
+            display: flex;
+        }
+
+        /* Estilizar la barra de scroll del metadata */
+        .metadata::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .metadata::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .metadata::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 2px;
+        }
 
         .metadata-row {
-            word-break: break-all; /* Para URLs largas */
+            word-break: break-all;
         }
 
-        /* Sección Ejemplos */
+        .meta-label {
+            font-family: 'PPSupplyMono-Regular', monospace;
+        }
+
+        /* EJEMPLOS: Ya no tienen límite, fluyen dentro de metadata */
         .examples-title {
             margin-top: 10px;
             font-weight: bold;
-            font-family: 'PPSupplyMono-Regular', monospace; 
+            font-family: 'PPSupplyMono-Regular', monospace;
         }
 
         .ejemplos {
             margin-top: 5px;
-            max-height: 300px; /* Límite de altura */
-            overflow-y: auto;  /* Scroll vertical */
             border-top: 1px solid #000;
             padding-top: 5px;
+            /* Eliminados max-height y overflow propios */
         }
-
-        /* Scrollbar personalizada minimalista */
-        .ejemplos::-webkit-scrollbar { width: 4px; }
-        .ejemplos::-webkit-scrollbar-track { background: #f1f1f1; }
-        .ejemplos::-webkit-scrollbar-thumb { background: #888; }
 
         .ejemplo {
             margin-bottom: 15px;
@@ -183,45 +306,48 @@
         .caption-ejemplo {
             margin-bottom: 2px;
         }
-        .meta-label {
-            font-family: 'PPSupplyMono-Regular', monospace;
-        }
     </style>
 </head>
+
 <body>
     <div id="loader">
         <div class="spinner"></div>
         <div class="loading-text">LOADING TECHNOCITY...</div>
     </div>
-    
+
     <div class="info">
         <h1 class="title">Where did the city go?</h1>
-        <div class="city">Select Madrid / Arequipa</div>
-        
+        <div class="city"><span class="city-option active" data-city="madrid">Madrid</span>
+            |
+            <span class="city-option" data-city="arequipa">Arequipa</span>
+            |
+            <span class="city-option disabled">More soon...</span>
+        </div>
+
         <div class="menu">
-            <!-- Zona de Imagen Principal (o Placeholder) -->
+            <!-- PARTE 1: IMAGEN -->
             <div class="image-container">
                 <div class="image-placeholder-text">Select an image</div>
                 <img class="main-image" src="" alt="Selected">
             </div>
 
-            <!-- Zona de Datos -->
-             <div class="metadata">
+            <!-- PARTE 2: EL RESTO (Scrollable) -->
+            <div class="metadata">
                 <div class="metadata-row">
-                    <span class="meta-label">url:</span> 
+                    <span class="meta-label">url:</span>
                     <a class="meta-url" target="_blank"></a>
                 </div>
-                
+
                 <div class="metadata-row">
-                    <span class="meta-label">caption:</span> 
+                    <span class="meta-label">caption:</span>
                     <span class="meta-caption"></span>
                 </div>
-                
+
                 <div class="metadata-row">
-                    <span class="meta-label">count:</span> 
+                    <span class="meta-label">count:</span>
                     <span class="meta-count"></span>
                 </div>
-                
+
                 <p class="examples-title">Others examples</p>
                 <div class="ejemplos">
                     <!-- Los ejemplos se inyectarán aquí con JS -->
@@ -231,7 +357,8 @@
     </div>
 
     <canvas id="canvas"></canvas>
-    
+
     <script type="module" src="js/main.js"></script>
 </body>
+
 </html>

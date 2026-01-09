@@ -34,8 +34,7 @@ function getVisibleCells(camera, canvasWidth, canvasHeight, gridDims, baseCellSi
 }
 
 // AÑADIDO: hoveredKey como argumento final
-export function renderGrid(ctx, canvas, data, gridSize, camera, imageManager, selectedKey = null, hoveredKey = null) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+export function renderGrid(ctx, canvas, data, gridSize, camera, imageManager, selectedKey = null, hoveredKey = null, currentCity = 'madrid') {    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = CONFIG.BACKGROUND_COLOR;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
@@ -76,7 +75,7 @@ export function renderGrid(ctx, canvas, data, gridSize, camera, imageManager, se
             
             // Imagen
             if (screenCellSize >= CONFIG.MIN_RENDER_SIZE) {
-                const img = imageManager.getImage(cellData.img);
+                const img = imageManager.getImage(cellData.img, currentCity);
                 if (img) {
                     ctx.save();
                     ctx.beginPath();

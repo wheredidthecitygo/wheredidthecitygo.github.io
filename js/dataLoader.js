@@ -5,49 +5,44 @@ import { CONFIG } from './config.js';
 /**
  * Carga los datos combinados para un nivel de grid específico
  */
-export async function loadData(gridSize) {
-    // Si estamos en modo fake data (para pruebas sin servidor)
+export async function loadData(gridSize, city) {
     if (CONFIG.USE_FAKE_DATA) {
         return generateFakeData(gridSize);
     }
 
-    const files = CONFIG.DATA_SOURCES[gridSize];
+    // 1. Validar que la ciudad existe en config
+    if (!CONFIG.DATA_SOURCES[city]) {
+        console.error(`La ciudad ${city} no está configurada.`);
+        return {};
+    }
+
+    // 2. Obtener archivos de esa ciudad y nivel
+    const files = CONFIG.DATA_SOURCES[city][gridSize];
 
     if (!files || files.length === 0) {
-        console.error(`No hay archivos configurados para el nivel ${gridSize}`);
+        console.error(`No hay archivos para ${city} nivel ${gridSize}`);
         return {};
     }
 
     try {
-        console.time(`Carga Nivel ${gridSize}`);
+        console.time(`Carga ${city} Nivel ${gridSize}`);
         
-        // 1. Lanzar todas las peticiones en PARALELO
         const promises = files.map(file => fetch(file).then(response => {
-            if (!response.ok) {
-                throw new Error(`Error cargando ${file}: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`Error cargando ${file}: ${response.statusText}`);
             return response.json();
         }));
 
-        // 2. Esperar a que lleguen todas
         const parts = await Promise.all(promises);
-
-        // 3. Fusionar las partes en un único objeto
-        // Usamos Object.assign en un objeto vacío para fusionar
-        // (Es más eficiente que ...spread para objetos muy grandes)
         const combinedData = Object.assign({}, ...parts);
 
-        console.timeEnd(`Carga Nivel ${gridSize}`);
-        console.log(`Nivel ${gridSize} cargado. Celdas totales: ${Object.keys(combinedData).length}`);
-
+        console.timeEnd(`Carga ${city} Nivel ${gridSize}`);
         return combinedData;
 
     } catch (error) {
-        console.error(`Error crítico cargando datos del nivel ${gridSize}:`, error);
+        console.error(`Error crítico cargando datos de ${city} nivel ${gridSize}:`, error);
         return {};
     }
 }
-
 /**
  * Calcula el rango min/max de los counts para normalizar tamaños
  */
