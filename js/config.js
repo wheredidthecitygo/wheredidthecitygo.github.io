@@ -18,8 +18,8 @@ export const CONFIG = {
         },
         arequipa: {
             64: ["data/arequipa_64.json"],
-            128: ["data/arequipa_128_part1.json", "data/arequipa_128_part2.json"],
-            256: ["data/arequipa_256_part1.json", "data/arequipa_256_part2.json", "data/arequipa_256_part3.json"],
+            128: ["data/arequipa_128.json"],
+            256: ["data/arequipa_256.json"],
         },
     },
 
